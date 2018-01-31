@@ -1,7 +1,6 @@
 import React, {Component} from 'react';
 import ReactDOM from 'react-dom';
 
-
 document.addEventListener('DOMContentLoaded', function(){
 
     class Input extends Component {
@@ -10,15 +9,18 @@ document.addEventListener('DOMContentLoaded', function(){
         this.state = {
           value: '',
           companyData: {},
-          error: ''
+          error: '',
+          validate: false,
+          nip: ''
         };
       }
       //first validation of input - if it is a number or string
       newVat = (event) =>{
+
         if(typeof event.target.value === 'number' || typeof event.target.value === 'string'){
           this.setState({value: event.target.value, error: ''});
         }else {
-          this.setState({error: 'Proszę wprowadzić poprawny format NIP'});
+          this.setState({error: 'Proszę wprowadzić poprawny format NIP', companyData: {}});
         }
       }
       //check if localStorage is available in Browser
@@ -44,21 +46,48 @@ document.addEventListener('DOMContentLoaded', function(){
                   storage.length !== 0;
           }
       }
-      // handle keyPress ('enter') - validate the length of input
-      keyPress = (event) =>{
-        if (event.key === 'Enter') {
+      // handle button Click - validate the length of input
+      handleClick = (event) =>{
           if(this.state.value.length < 9){
-            this.setState({error: 'Proszę wprowadzić poprawny numer'});
-          } else if (this.state.value.length >= 9){
-            this.setState({error:''})
-            this.checkStorage();
+            this.setState({error: 'Proszę wprowadzić poprawną ilość cyfr', companyData: {}});
+          } else {
+            let validate = this.checkNIPIsValid();
+            if (validate){
+              this.setState({error:''});
+              this.checkStorage();
+            } else if (!validate){
+              this.setState({error:'Proszę wprowadzić poprawny numer', companyData: {}});
+
+            }
           }
-        }
       }
-      // after keyPress check if the key is available in localStorage or not
+      checkNIPIsValid () {
+        const weights = [6, 5, 7, 2, 3, 4, 5, 6, 7];
+        let nip = this.state.value;
+        nip = nip.replace(/[\s-]/g, '');
+        nip = nip.replace(/\D+/g, "");
+        if (nip.length === 10 && parseInt(nip, 10) > 0) {
+                let sum = 0;
+                for(let i = 0; i < 9; i++){
+                        sum += nip[i] * weights[i];
+                }
+                if((sum % 11) === Number(nip[9])){
+                  this.setState({validate: true})
+                }else{
+                  this.setState({validate: false});
+                }
+                return (sum % 11) === Number(nip[9]);
+        }
+        this.setState({validate: false});
+        return false;
+      }
+      // after button Click check if the key is available in localStorage or not
       checkStorage = () =>{
         if (this.storageAvailable('localStorage')) {
-          let keyString = JSON.stringify(this.state.value);
+          let nip = this.state.value;
+          nip = nip.replace(/[\s-]/g, '');
+          nip = nip.replace(/\D+/g, "");
+          let keyString = JSON.stringify(nip);
           if(!localStorage.getItem(keyString)) {
               this.getCompanyDetails();
             } else {
@@ -71,7 +100,10 @@ document.addEventListener('DOMContentLoaded', function(){
       }
       // if there is a key in localStorage, get data from there
       getDataFromLocalStorage = () => {
-        let keyString = JSON.stringify(this.state.value);
+        let nip = this.state.value;
+        nip = nip.replace(/[\s-]/g, '');
+        nip = nip.replace(/\D+/g, "");
+        let keyString = JSON.stringify(nip);
         let result = localStorage.getItem(keyString);
         this.setState({ companyData: JSON.parse(result) });
       }
@@ -79,6 +111,7 @@ document.addEventListener('DOMContentLoaded', function(){
       getCompanyDetails = () =>{
         let newValue = this.state.value;
         newValue= newValue.replace(/\D+/g, "");
+        newValue = newValue.replace(/[\s-]/g, '');
         const apiUrl = `http://ihaveanidea.aveneo.pl/NIPAPI/api/Company?CompanyId=${newValue}`;
         const apiData = fetch(apiUrl).then(resp =>	{
             if	(resp.ok) return	resp.json();
@@ -103,32 +136,36 @@ document.addEventListener('DOMContentLoaded', function(){
         if(this.state.companyData === null){
           return null;
         }else if (this.state.companyData.Success === true){
-           this.setState({error:""});
-           return ( <div>
-               <table>
-                   <thead>
-                     <tr>
-                       <th>REGON</th>
-                       <th>NAZWA</th>
-                       <th>WOJEWÓDZTWO</th>
-                       <th>POWIAT</th>
-                       <th>ADRES</th>
-                       <th>DATA ROZPOCZĘCIA DZIAŁALNOŚCI</th>
-                       <th>RODZAJ DZIAŁALNOSCI</th>
-                     </tr>
-                   </thead>
-                   <tbody>
-                     <tr>
-                       <th>{this.state.companyData.CompanyInformation.Regon}</th>
-                       <th>{this.state.companyData.CompanyInformation.Name}</th>
-                       <th>{this.state.companyData.CompanyInformation.Province}</th>
-                       <th>{this.state.companyData.CompanyInformation.County}</th>
-                       <th>{this.state.companyData.CompanyInformation.Street} {this.state.companyData.CompanyInformation.HouseNumber} / {this.state.companyData.CompanyInformation.ApartmentNumber} {this.state.companyData.CompanyInformation.PostalCode} {this.state.companyData.CompanyInformation.Place} </th>
-                       <th>{this.state.companyData.CompanyInformation.BusinessActivityStart}</th>
-                       <th>{this.state.companyData.CompanyInformation.Type}</th>
-                     </tr>
-                   </tbody>
-                 </table>
+           return ( <div className="data">
+                      <div className="dataBox">
+                        <span className="dataBox_name">REGON</span>
+                        <span className="dataBox_info">{this.state.companyData.CompanyInformation.Regon}</span>
+                      </div>
+                      <div className="dataBox">
+                        <span className="dataBox_name">NAZWA</span>
+                        <span className="dataBox_info">{this.state.companyData.CompanyInformation.Name}</span>
+                      </div>
+                      <div className="dataBox">
+                        <span className="dataBox_name">WOJEWÓDZTWO</span>
+                        <span className="dataBox_info">{this.state.companyData.CompanyInformation.Province}</span>
+                      </div>
+                      <div className="dataBox">
+                        <span className="dataBox_name">POWIAT</span>
+                        <span className="dataBox_info">{this.state.companyData.CompanyInformation.County}</span>
+                      </div>
+                      <div className="dataBox">
+                        <span className="dataBox_name">ADRES</span>
+                        <span className="dataBox_info">{this.state.companyData.CompanyInformation.Street} {this.state.companyData.CompanyInformation.HouseNumber} / {this.state.companyData.CompanyInformation.ApartmentNumber} {this.state.companyData.CompanyInformation.PostalCode} {this.state.companyData.CompanyInformation.Place}
+                        </span>
+                      </div>
+                      <div className="dataBox">
+                        <span className="dataBox_name">DATA ROZPOCZĘCIA DZIAŁALNOŚCI</span>
+                        <span className="dataBox_info">{this.state.companyData.CompanyInformation.BusinessActivityStart}</span>
+                      </div>
+                      <div className="dataBox">
+                        <span className="dataBox_name">RODZAJ DZIAŁALNOSCI</span>
+                        <span className="dataBox_info">{this.state.companyData.CompanyInformation.Type}</span>
+                      </div>
            </div>);
         }else{
           return null;
@@ -136,8 +173,10 @@ document.addEventListener('DOMContentLoaded', function(){
       }
       render(){
           return(
-            <div>
-              <input value={this.state.value} placeholder="wprowadź numer NIP i naciśnij ENTER" type="text" onChange={this.newVat} onKeyPress={this.keyPress}></input>
+            <div className ="entry">
+              <h1>SPRAWDŹ NUMER NIP</h1>
+              <input value={this.state.value} placeholder="wprowadź numer NIP" type="text" onChange={this.newVat} ></input>
+              <button onClick={this.handleClick}>Sprawdź numer NIP</button>
               <div className="error">{this.state.error}</div>
               {this.createDetails()}
             </div>
@@ -149,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function(){
       render(){
         return(
 					<div className={"container"}>
-            VAT CHECK
+
             <Input />
 					</div>
         );
